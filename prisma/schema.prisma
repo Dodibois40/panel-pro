@@ -1,0 +1,366 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// PRISMA SCHEMA - Panel Pro
+// ═══════════════════════════════════════════════════════════════════════════
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UTILISATEURS & AUTH
+// ═══════════════════════════════════════════════════════════════════════════
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  name          String?
+  company       String?
+  phone         String?
+  address       String?
+  role          UserRole  @default(CLIENT)
+  discountRate  Decimal   @default(0) @map("discount_rate") @db.Decimal(5, 2)
+  isActive      Boolean   @default(true) @map("is_active")
+  emailVerified DateTime? @map("email_verified")
+
+  orders           Order[]
+  sessions         Session[]
+  accounts         Account[]
+  pricingUpdates   PricingConfig[]  @relation("PricingUpdatedBy")
+  pricingHistory   PricingHistory[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  PRODUCTION
+  CLIENT
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CATALOGUE - PANNEAUX
+// ═══════════════════════════════════════════════════════════════════════════
+
+model SupplierPanel {
+  id             String        @id @default(cuid())
+  reference      String        @unique
+  name           String
+  supplier       String
+  material       PanelMaterial
+  thickness      Decimal       @db.Decimal(5, 2)
+  length         Int           // en mm
+  width          Int           // en mm
+  pricePerM2     Decimal       @map("price_per_m2") @db.Decimal(10, 2)
+  grainDirection Boolean       @default(false) @map("grain_direction")
+  colorCode      String?       @map("color_code")
+  imageUrl       String?       @map("image_url")
+  stockStatus    StockStatus   @default(IN_STOCK) @map("stock_status")
+  isActive       Boolean       @default(true) @map("is_active")
+
+  configuredParts  ConfiguredPart[]
+  compatibleEdges  SupplierPanelEdge[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([supplier])
+  @@index([material])
+  @@index([thickness])
+  @@map("supplier_panels")
+}
+
+enum PanelMaterial {
+  MELAMINE
+  MDF
+  MDF_LAQUE
+  STRATIFIE
+  PLAQUE_BOIS
+  CONTREPLAQUE
+  AGGLO
+  COMPACT
+}
+
+enum StockStatus {
+  IN_STOCK
+  LOW_STOCK
+  ON_ORDER
+  DISCONTINUED
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CATALOGUE - CHANTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+model EdgeBanding {
+  id            String       @id @default(cuid())
+  reference     String       @unique
+  name          String
+  material      EdgeMaterial
+  thickness     Decimal      @db.Decimal(3, 1)
+  width         Decimal      @db.Decimal(5, 1)
+  pricePerMeter Decimal      @map("price_per_meter") @db.Decimal(8, 2)
+  colorCode     String?      @map("color_code")
+  isActive      Boolean      @default(true) @map("is_active")
+
+  compatiblePanels SupplierPanelEdge[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([material])
+  @@index([thickness])
+  @@map("edge_bandings")
+}
+
+enum EdgeMaterial {
+  ABS
+  ABS_LASER
+  MELAMINE
+  PVC
+  BOIS_MASSIF
+  ALUMINIUM
+  ACRYLIQUE
+}
+
+// Table de jonction Panneau <-> Chant
+model SupplierPanelEdge {
+  panel     SupplierPanel @relation(fields: [panelId], references: [id], onDelete: Cascade)
+  panelId   String        @map("panel_id")
+  edge      EdgeBanding   @relation(fields: [edgeId], references: [id], onDelete: Cascade)
+  edgeId    String        @map("edge_id")
+  isDefault Boolean       @default(false) @map("is_default")
+
+  @@id([panelId, edgeId])
+  @@map("supplier_panel_edges")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CATALOGUE - QUINCAILLERIE
+// ═══════════════════════════════════════════════════════════════════════════
+
+model Hardware {
+  id               String           @id @default(cuid())
+  reference        String           @unique
+  name             String
+  brand            HardwareBrand
+  category         HardwareCategory
+  model            String
+  drillingPattern  Json             @map("drilling_pattern")
+  minThickness     Decimal          @map("min_thickness") @db.Decimal(5, 2)
+  maxThickness     Decimal          @map("max_thickness") @db.Decimal(5, 2)
+  drillingPrice    Decimal          @map("drilling_price") @db.Decimal(8, 2)
+  imageUrl         String?          @map("image_url")
+  documentationUrl String?          @map("documentation_url")
+  isActive         Boolean          @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([brand])
+  @@index([category])
+  @@map("hardware")
+}
+
+enum HardwareBrand {
+  BLUM
+  HETTICH
+  GRASS
+  HAFELE
+  SALICE
+  KING_SLIDE
+  OTHER
+}
+
+enum HardwareCategory {
+  CHARNIERE
+  COULISSE
+  RELEVABLE
+  COMPAS
+  PIED
+  TIROIR_SYSTEME
+  POUBELLE
+  TOURNIQUET
+  OTHER
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// COMMANDES
+// ═══════════════════════════════════════════════════════════════════════════
+
+model Order {
+  id              String         @id @default(cuid())
+  orderNumber     String         @unique @map("order_number")
+  projectName     String?        @map("project_name")
+
+  customer        User           @relation(fields: [customerId], references: [id])
+  customerId      String         @map("customer_id")
+
+  status          OrderStatus    @default(DRAFT)
+  totalPrice      Decimal        @default(0) @map("total_price") @db.Decimal(12, 2)
+  discountApplied Decimal        @default(0) @map("discount_applied") @db.Decimal(12, 2)
+  taxRate         Decimal        @default(20) @map("tax_rate") @db.Decimal(5, 2)
+
+  deliveryOption  DeliveryOption @default(PICKUP) @map("delivery_option")
+  deliveryAddress String?        @map("delivery_address")
+  deliveryDate    DateTime?      @map("delivery_date") @db.Date
+  notes           String?
+
+  parts ConfiguredPart[]
+
+  confirmedAt DateTime? @map("confirmed_at")
+  producedAt  DateTime? @map("produced_at")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([customerId])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@map("orders")
+}
+
+enum OrderStatus {
+  DRAFT
+  PENDING
+  CONFIRMED
+  IN_PRODUCTION
+  READY
+  SHIPPED
+  DELIVERED
+  COMPLETED
+  CANCELLED
+}
+
+enum DeliveryOption {
+  PICKUP
+  DELIVERY
+  EXPRESS
+  TRANSPORT
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PIÈCES CONFIGURÉES
+// ═══════════════════════════════════════════════════════════════════════════
+
+model ConfiguredPart {
+  id        String @id @default(cuid())
+  reference String
+  quantity  Int    @default(1)
+
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId String @map("order_id")
+
+  panel   SupplierPanel @relation(fields: [panelId], references: [id])
+  panelId String        @map("panel_id")
+
+  length           Int
+  width            Int
+  grainOrientation GrainOrientation? @map("grain_orientation")
+
+  edgeConfig          Json  @map("edge_config")
+  assemblyDrillings   Json  @default("[]") @map("assembly_drillings")
+  hardwareDrillings   Json  @default("[]") @map("hardware_drillings")
+  machiningOperations Json  @default("[]") @map("machining_operations")
+  finish              Json?
+
+  calculatedPrice Decimal @map("calculated_price") @db.Decimal(10, 2)
+  priceBreakdown  Json    @map("price_breakdown")
+  notes           String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([orderId])
+  @@index([panelId])
+  @@map("configured_parts")
+}
+
+enum GrainOrientation {
+  LENGTH
+  WIDTH
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TARIFICATION
+// ═══════════════════════════════════════════════════════════════════════════
+
+model PricingConfig {
+  id          String  @id @default(cuid())
+  key         String  @unique
+  value       Decimal @db.Decimal(12, 4)
+  unit        String?
+  description String?
+  category    String
+
+  updatedBy   User?   @relation("PricingUpdatedBy", fields: [updatedById], references: [id])
+  updatedById String? @map("updated_by")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([category])
+  @@map("pricing_configs")
+}
+
+model PricingHistory {
+  id        String  @id @default(cuid())
+  configKey String  @map("config_key")
+  oldValue  Decimal @map("old_value") @db.Decimal(12, 4)
+  newValue  Decimal @map("new_value") @db.Decimal(12, 4)
+
+  changedBy   User   @relation(fields: [changedById], references: [id])
+  changedById String @map("changed_by")
+  changedAt   DateTime @default(now()) @map("changed_at")
+  reason      String?
+
+  @@index([configKey])
+  @@index([changedAt])
+  @@map("pricing_history")
+}

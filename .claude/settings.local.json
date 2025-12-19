@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell:*)",
+      "Bash(copy \"Cahier-des-Charges-Configurateur-Debit-Panneaux.docx\" \"temp_cahier.zip\")",
+      "Bash(npx create-next-app:*)",
+      "Bash(pnpm add:*)",
+      "Bash(cat:*)",
+      "Bash(dir /s /b \"C:\\Users\\doria\\Desktop\\La-manufacture-de-lagencement\\src\\*.ts*\")",
+      "Bash(npx prisma init)",
+      "Bash(npx prisma generate:*)",
+      "Bash(pnpm exec tsc:*)",
+      "Bash(pnpm list:*)",
+      "Bash(pnpm build:*)",
+      "Bash(pnpm exec prisma generate:*)",
+      "Bash(pnpm exec eslint:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
