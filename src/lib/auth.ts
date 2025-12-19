@@ -82,6 +82,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
   session: {
     strategy: 'jwt',
-    maxAge: 7 * 24 * 60 * 60, // 7 jours
+    maxAge: 604800, // 7 jours en secondes
   },
+
+  trustHost: true, // Requis pour Railway/proxies
 })

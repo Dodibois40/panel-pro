@@ -15,7 +15,13 @@
       "Bash(pnpm exec prisma generate:*)",
       "Bash(pnpm exec eslint:*)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nInitial commit - Panel Pro v0.1.0\n\nApplication complète de configurateur de panneaux d''agencement:\n- Next.js 16 + TypeScript + Tailwind CSS 4\n- tRPC + Prisma 7 + PostgreSQL\n- NextAuth v5 (authentification)\n- Dark mode + PWA support\n- 22 routes (admin, client, configurateur)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git config:*)",
+      "Bash(git remote add:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
