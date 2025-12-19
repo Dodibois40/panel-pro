@@ -7,7 +7,13 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../src/generated/prisma'
 import { Pool } from 'pg'
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+const connectionString = process.env.DATABASE_URL
+
+if (!connectionString) {
+  throw new Error('DATABASE_URL is not defined')
+}
+
+const pool = new Pool({ connectionString })
 const adapter = new PrismaPg(pool)
 const prisma = new PrismaClient({ adapter })
 

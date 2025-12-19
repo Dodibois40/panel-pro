@@ -2,27 +2,31 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@/generated/prisma'
 import { Pool } from 'pg'
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-  pool: Pool | undefined
+declare global {
+  // eslint-disable-next-line no-var
+  var prismaClient: PrismaClient | undefined
+  // eslint-disable-next-line no-var
+  var pgPool: Pool | undefined
 }
 
 function createPrismaClient(): PrismaClient {
   const connectionString = process.env.DATABASE_URL
 
   if (!connectionString) {
-    throw new Error('DATABASE_URL is not defined')
+    throw new Error('DATABASE_URL environment variable is not defined')
   }
 
-  // Réutiliser le pool existant ou en créer un nouveau
-  if (!globalForPrisma.pool) {
-    globalForPrisma.pool = new Pool({
+  // Réutiliser le pool existant pour éviter les fuites de connexion
+  if (!global.pgPool) {
+    global.pgPool = new Pool({
       connectionString,
-      max: 10, // Limite les connexions
+      max: 10,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
     })
   }
 
-  const adapter = new PrismaPg(globalForPrisma.pool)
+  const adapter = new PrismaPg(global.pgPool)
 
   return new PrismaClient({
     adapter,
@@ -30,24 +34,11 @@ function createPrismaClient(): PrismaClient {
   })
 }
 
-// Lazy initialization - ne crée le client que quand il est utilisé
-function getPrismaClient(): PrismaClient {
-  if (!globalForPrisma.prisma) {
-    globalForPrisma.prisma = createPrismaClient()
-  }
-  return globalForPrisma.prisma
-}
+// Singleton pattern pour éviter les connexions multiples
+export const prisma = global.prismaClient ?? createPrismaClient()
 
-// Export un proxy qui initialise le client à la demande
-export const prisma = new Proxy({} as PrismaClient, {
-  get(_, prop) {
-    const client = getPrismaClient()
-    const value = client[prop as keyof PrismaClient]
-    if (typeof value === 'function') {
-      return value.bind(client)
-    }
-    return value
-  },
-})
+if (process.env.NODE_ENV !== 'production') {
+  global.prismaClient = prisma
+}
 
 export default prisma
