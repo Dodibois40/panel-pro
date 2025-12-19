@@ -3,19 +3,9 @@
  * Exécuter avec: pnpm db:seed
  */
 import { hash } from 'bcryptjs'
-import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../src/generated/prisma'
-import { Pool } from 'pg'
 
-const connectionString = process.env.DATABASE_URL
-
-if (!connectionString) {
-  throw new Error('DATABASE_URL is not defined')
-}
-
-const pool = new Pool({ connectionString })
-const adapter = new PrismaPg(pool)
-const prisma = new PrismaClient({ adapter })
+const prisma = new PrismaClient()
 
 async function main() {
   console.log('🌱 Seeding database...')
@@ -177,7 +167,6 @@ async function main() {
   // LIAISON PANNEAUX-CHANTS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // Associer le chant blanc au mélaminé blanc
   await prisma.supplierPanelEdge.upsert({
     where: {
       panelId_edgeId: {
@@ -193,7 +182,6 @@ async function main() {
     },
   })
 
-  // Associer le chant chêne au mélaminé chêne
   await prisma.supplierPanelEdge.upsert({
     where: {
       panelId_edgeId: {
@@ -216,23 +204,14 @@ async function main() {
   // ═══════════════════════════════════════════════════════════════════════════
 
   const pricingConfigs = [
-    // Découpe
     { key: 'COUPE_PANNEAU', value: 1.5, unit: '€/coupe', category: 'DECOUPE', description: 'Prix par coupe de panneau' },
     { key: 'COUPE_MINIMUM', value: 5, unit: '€', category: 'DECOUPE', description: 'Minimum facturation découpe' },
-
-    // Chants
     { key: 'POSE_CHANT_ML', value: 2.0, unit: '€/ml', category: 'CHANT', description: 'Pose chant au mètre linéaire' },
     { key: 'POSE_CHANT_LASER_ML', value: 3.5, unit: '€/ml', category: 'CHANT', description: 'Pose chant laser au mètre linéaire' },
-
-    // Perçage
     { key: 'PERCAGE_UNITAIRE', value: 0.15, unit: '€/trou', category: 'PERCAGE', description: 'Perçage unitaire' },
     { key: 'PERCAGE_LIGNE_32', value: 2.0, unit: '€/ligne', category: 'PERCAGE', description: 'Perçage ligne système 32' },
-
-    // Usinage
     { key: 'RAINURE_ML', value: 3.0, unit: '€/ml', category: 'USINAGE', description: 'Rainure au mètre linéaire' },
     { key: 'FEUILLURE_ML', value: 4.0, unit: '€/ml', category: 'USINAGE', description: 'Feuillure au mètre linéaire' },
-
-    // Livraison
     { key: 'LIVRAISON_BASE', value: 35, unit: '€', category: 'LIVRAISON', description: 'Frais de livraison base' },
     { key: 'LIVRAISON_KM', value: 1.2, unit: '€/km', category: 'LIVRAISON', description: 'Supplément par km' },
   ]
@@ -246,7 +225,6 @@ async function main() {
   }
 
   console.log('✅ Configuration tarifs créée:', pricingConfigs.length)
-
   console.log('🎉 Seeding completed!')
 }
 
@@ -257,5 +235,4 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect()
-    await pool.end()
   })
